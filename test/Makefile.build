@@ -1,0 +1,82 @@
+root_dir	:= .
+
+compiler	:= g++
+linker		:= g++
+
+program_name	:= $(root_dir)/binaries/test
+source_dir	:= $(root_dir)/source
+library		:= $(root_dir)/../../thirdparty/Library/include
+extended_dir	:= $(root_dir)/../source $(library)
+include_dir	:= $(library)
+object_dir	:= $(root_dir)/object
+exclude_files	:= $(root_dir)/../source/main.cpp
+
+target		:= $(MAKECMDGOALS)
+target_dir	:= $(object_dir)/$(target)/objects/
+VPATH		:= $(target_dir)
+
+# По умолчанию флаги сборки пустые.
+build_flags	:=
+
+source_subdirs	:= $(shell find -L $(source_dir) $(extended_dir) -type d)
+
+# Ругается на то что с моей точки зрения ошибкой не является и что работает как часы. -Woverloaded-virtual
+compile_flags	:= -pthread -Wall -Wextra -Weffc++ -Wctor-dtor-privacy -Wnon-virtual-dtor -Wold-style-cast -Werror -Wconversion -Wsign-conversion -Winit-self -Wunreachable-code -pedantic-errors
+link_flags	:= -pthread -lcrypto -lgtest
+
+objects_dirs	:= $(addprefix $(target_dir), $(source_subdirs))
+
+objects		:= $(wildcard $(addsuffix /*.cpp, $(source_subdirs)))
+objects		:= $(filter-out $(exclude_files),$(objects))
+objects		:= $(objects:.cpp=.o)
+
+.PHONY: dump clean
+
+clean:
+	rm -rf $(object_dir)
+	rm -f $(program_name)
+
+dump:
+	@echo MAKEFLAGS = $(MAKEFLAGS)
+	@echo Dump variables:
+	@echo
+	@echo root_dir       = $(root_dir)
+	@echo program_name   = $(program_name)
+	@echo root_source_dir= $(source_dir)
+	@echo root_object_dir= $(object_dir)
+	@echo target         = $(target)
+	@echo target_dir     = $(target_dir)
+	@echo
+	@echo source_subdirs = $(source_subdirs)
+	@echo
+	@echo objects_dirs   = $(objects_dirs)
+	@echo
+	@echo objects        = $(objects)
+	@echo
+	@echo d_files        = $(d_files)
+	@echo
+
+# если цель не clean и не dump - всё остальное собираем
+ifeq (,$(findstring $(MAKECMDGOALS),clean dump))
+dummy_mkdir := $(shell mkdir -p $(objects_dirs))
+
+$(target): $(program_name)
+	@echo "Done"
+
+d_files := $(addprefix $(target_dir), $(objects:.o=.d))
+-include $(d_files)
+endif
+
+$(program_name): $(objects)
+	rm -rf ./binaries
+	mkdir -p binaries
+	$(linker) -o $@ $(addprefix $(target_dir), $(objects)) $(link_flags)
+
+%.o:
+	$(compiler) -o $(target_dir)$@ -c $(@:%.o=%.cpp) $(compile_flags) $(build_flags) -I$(include_dir)
+
+%.d:
+	@rm -f $@
+	@echo ...making: $@
+	@$(compiler) $(patsubst $(target_dir)%.d,%,./$@).cpp -M -MT $(patsubst $(target_dir)%.d,%,./$@).o -MT $@ -MF $@ -I$(include_dir)
+

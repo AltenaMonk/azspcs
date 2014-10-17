@@ -3,8 +3,9 @@
 #include <csignal>
 #include <cstring>
 
+#include <boost/bind.hpp>
+
 #include <Library/BaseSocket.h>
-#include <Library/File.h>
 #include <Library/LogManager.h>
 #ifdef UNITTEST
 #include <Library/FileSystemManager.h>
@@ -15,6 +16,8 @@
 
 #include "Version.h"
 #include "Field.h"
+#include "Population.h"
+#include "Result.h"
 
 namespace azspcs
 {
@@ -47,256 +50,81 @@ void azspcsModule::InitializeFactories()
     InitFactory<Library::BaseSocket>();
 }
 
-typedef boost::shared_ptr<Field> TField;
-typedef std::list<TField> TPopulation;
-
-unsigned long Random(unsigned long x)
+long long Random(unsigned long x)
 {
-    return static_cast<unsigned long>(rand()%static_cast<long long>(x));
+    return rand()%static_cast<long long>(x);
 }
 
-void MutationChange(TField field)
+typedef void (*Mutation)(TField);
+
+inline void MutationRandomChange(TField field)
 {
-    unsigned long count(field->GetSize() + Random(field->GetSize()));
+    unsigned int x1(Random(field->GetSize()));
+    unsigned int y1(Random(field->GetSize()));
+    unsigned int x2(Random(field->GetSize()));
+    unsigned int y2(Random(field->GetSize()));
+    long long value(field->Get(x1, y1));
+    field->Set(x1, y1, field->Get(x2, y2));
+    field->Set(x2, y2, value);
+}
+
+inline void MutationNearChange(TField field)
+{
+    long long x1(Random(field->GetSize()));
+    long long y1(Random(field->GetSize()));
+    long long x2(x1 + Random(3) - 2);
+    long long y2(y1 + Random(3) - 2);
+
+    if (x2 < 0 || x2 >= field->GetSize() || y2 < 0 || y2 >= field->GetSize())
+    {
+        return;
+    }
+
+    long long value(field->Get(x1, y1));
+    field->Set(x1, y1, field->Get(x2, y2));
+    field->Set(x2, y2, value);
+}
+
+inline void MutationSpeed(Mutation mutation, unsigned long count, TField field)
+{
     for (unsigned long z(0); z < count; ++z)
     {
-        unsigned int x1(Random(field->GetSize()));
-        unsigned int y1(Random(field->GetSize()));
-        unsigned int x2(Random(field->GetSize()));
-        unsigned int y2(Random(field->GetSize()));
-        long long value(field->Get(x1, y1));
-        field->Set(x1, y1, field->Get(x2, y2));
-        field->Set(x2, y2, value);
+        mutation(field);
     }
 }
 
-void Mutation(TPopulation & population, unsigned long populationSize)
+inline void MutationRandomChangeFast(TField field)
 {
-    while (population.size() < populationSize)
-    {
-        unsigned long size(population.size());
-        for (unsigned long index(0); index < size; ++index)
-        {
-            TPopulation::iterator iterator(population.begin());
-            std::advance(iterator, index);
-            population.push_back(*iterator);
-            MutationChange(population.back());
-        }
-    }
+    unsigned long count(sqrt(field->GetSize())*field->GetSize());
+    MutationSpeed(&MutationRandomChange, count, field);
 }
 
-void Genetic(long long mutationStep, unsigned long populationSize, TField & min, TField & max)
+inline void MutationRandomChangeNormal(TField field)
 {
-    typedef std::vector<long long> TResults;
-    TPopulation populationMin;
-    populationMin.push_back(min);
-    TPopulation populationMax;
-    populationMax.push_back(max);
-
-    for (long long step(0); step < mutationStep; ++step)
-    {
-        Mutation(populationMin, populationSize);
-        Mutation(populationMax, populationSize);
-
-        TResults minResult;
-        TResults maxResult;
-        for (unsigned long index(0); index < populationMin.size(); ++index)
-        {
-            TPopulation::iterator iterator(populationMin.begin());
-            std::advance(iterator, index);
-            minResult.push_back((*iterator)->GetValue());
-        }
-        for (unsigned long index(0); index < populationMax.size(); ++index)
-        {
-            TPopulation::iterator iterator(populationMax.begin());
-            std::advance(iterator, index);
-            maxResult.push_back((*iterator)->GetValue());
-        }
-
-        if (populationMin.size() > populationSize)
-        {
-            long long middle(0);
-            for (unsigned long index(0); index < populationMin.size(); ++index)
-            {
-                middle += minResult[index];
-            }
-            middle /= populationMin.size();
-            for (unsigned long index(populationMin.size()); index != 0; --index)
-            {
-                if (minResult[index] > middle)
-                {
-                    TPopulation::iterator iterator(populationMin.begin());
-                    std::advance(iterator, index - 1);
-                    populationMin.erase(iterator);
-                }
-            }
-        }
-        if (populationMax.size() > populationSize)
-        {
-            long long middle(0);
-            for (unsigned long index(0); index < populationMax.size(); ++index)
-            {
-                middle += maxResult[index];
-            }
-            middle /= populationMax.size();
-            for (unsigned long index(populationMax.size()); index != 0; --index)
-            {
-                if (maxResult[index] < middle)
-                {
-                    TPopulation::iterator iterator(populationMax.begin());
-                    std::advance(iterator, index - 1);
-                    populationMax.erase(iterator);
-                }
-            }
-        }
-    }
-    long long maxIndex=0;
-    long long minIndex=0;
-    long long maxValue=0;
-    long long minValue=0x7FFFFFFF;
-    for (unsigned long index(0); index < populationMin.size(); ++index)
-    {
-        TPopulation::iterator iterator(populationMin.begin());
-        std::advance(iterator, index);
-        if ((*iterator)->GetValue()  < minValue)
-        {
-            minIndex = index;
-        }
-    }
-    for (unsigned long index(0); index < populationMax.size(); ++index)
-    {
-        TPopulation::iterator iterator(populationMax.begin());
-        std::advance(iterator, index);
-        if ((*iterator)->GetValue()  > maxValue)
-        {
-            maxIndex = index;
-        }
-    }
-    {
-        TPopulation::iterator iterator(populationMin.begin());
-        std::advance(iterator, minIndex);
-        min = *iterator;
-    }
-    {
-        TPopulation::iterator iterator(populationMax.begin());
-        std::advance(iterator, maxIndex);
-        max = *iterator;
-    }
+    unsigned long count(field->GetSize() + Random(field->GetSize()));
+    MutationSpeed(&MutationRandomChange, count, field);
 }
 
-void Compare(TPopulation & best, TPopulation const & item)
+inline void MutationRandomChangeSlow(TField field)
 {
-    int size(3);
-    int count(0);
-    TPopulation::const_iterator iter(item.begin());
-    for (TPopulation::iterator iterator(best.begin()); iterator != best.end(); ++iterator, ++iter)
-    {
-        long long bestValue = (*iterator)->GetValue();
-        long long itemValue = (*iter)->GetValue();
-
-        if (count == 0)
-        {
-            if (itemValue < bestValue)
-            {
-                *iterator = *iter;
-            }
-        }
-        if (count == 1)
-        {
-            if (itemValue > bestValue)
-            {
-                *iterator = *iter;
-            }
-        }
-        ++count;
-        if (count == 2)
-        {
-            count = 0;
-            ++size;
-        }
-        if (size == 28)
-        {
-            break;
-        }
-    }
+    MutationSpeed(&MutationRandomChange, 1, field);
 }
 
-void Load(Library::String const & filename, TPopulation & population)
+inline void MutationNearChangeFast(TField field)
 {
-    Library::String::TStrings load = Library::File(filename).Read().Split("\n");
-    population.clear();
-
-    int size(3);
-    int count(0);
-    for (Library::String::TStrings::const_iterator iterator(load.begin()); iterator != load.end(); ++iterator)
-    {
-        TField field(new Field());
-        field->Load(*iterator, size);
-        population.push_back(field);
-        ++count;
-        if (count == 2)
-        {
-            count = 0;
-            ++size;
-        }
-        if (size == 28)
-        {
-            break;
-        }
-    }
+    unsigned long count(sqrt(field->GetSize())*field->GetSize());
+    MutationSpeed(&MutationNearChange, count, field);
 }
 
-void Save(Library::String const & filename, TPopulation const & population, bool people)
+inline void MutationNearChangeNormal(TField field)
 {
-    Library::String data;
-    Library::String data2;
-    long long result(0);
-    long long result2(0);
-    long long signum = -1;
-    long long counter(0);
-    for (TPopulation::const_iterator iterator(population.begin()); iterator != population.end(); ++iterator)
-    {
-        if (people)
-        {
-            long long temp((*iterator)->GetValue());
-            result += temp * signum;
-            result2 += temp * signum;
-
-            data += Library::SmartCast<Library::String>((*iterator)->GetSize(), "") + "\t " + Library::SmartCast<Library::String>(temp, "") + "\t: ";
-            ++counter;
-            if (counter == 2)
-            {
-                counter = 0;
-                data2 += Library::SmartCast<Library::String>((*iterator)->GetSize(), "") + "\t: " + Library::SmartCast<Library::String>(result2, "") + "\n";
-                result2 = 0;
-            }
-
-        }
-        (*iterator)->Save(data);
-        data += "\n";
-        signum *= -1;
-    }
-    if (people)
-    {
-        data = Library::SmartCast<Library::String>(result, "") + "\n\n" + data2 + "\n\n" + data;
-    }
-    Library::File(filename, true).ReWrite(data);
+    unsigned long count(field->GetSize() + Random(field->GetSize()));
+    MutationSpeed(&MutationNearChange, count, field);
 }
 
-void Save2(Library::String const & filename, TPopulation const & population)
+inline void MutationNearChangeSlow(TField field)
 {
-    Library::String data;
-    Library::String semicolonA("");
-    for (TPopulation::const_iterator iterator(population.begin()); iterator != population.end(); ++iterator)
-    {
-        (*iterator)->Save2(data);
-        data += semicolonA;
-        data += "\n";
-        data += "\n";
-        data += "\n";
-        semicolonA = ";";
-    }
-    Library::File(filename, true).ReWrite(data);
+    MutationSpeed(&MutationNearChange, 1, field);
 }
 
 bool azspcsModule::ParseCommandLineParameters(TParameters const & parameters, bool IsManagersReady)
@@ -325,42 +153,79 @@ bool azspcsModule::ParseCommandLineParameters(TParameters const & parameters, bo
 
     srand(time(NULL));
 
-    for (long long counter(0); counter < 1000; ++counter)
+    unsigned int const minSize(3);
+    unsigned int const maxSize(27);
+
+    Field::InitializeClass(maxSize);
+
+    Result best;
+    best.Load("../result/best.out");
+
+    for (unsigned int counter(0); counter < 10000; ++counter)
     {
         LOG_ADMIN_INFO << "Counter: " << counter;
-        TPopulation population;
-        for (long long x(3); x < 28; ++x)
+        Result result;
+        for (unsigned int size(minSize); size <= maxSize; ++size)
         {
-            LOG_ADMIN_INFO << "index: " << x;
-            TField min(new Field()), max(new Field());
-            min->Initialize(x);
-            max->Initialize(x);
-            Genetic(3+x*100, 3+x*50, min, max);
-            long long minValue(min->GetValue());
-            long long maxValue(max->GetValue());
-            if (minValue > maxValue)
+            LOG_ADMIN_INFO << "Size: " << size;
+            boost::shared_ptr<Population<std::less<TField> > > populationMin(new Population<std::less<TField> >());
+            boost::shared_ptr<Population<std::greater<TField> > > populationMax(new Population<std::greater<TField> >());
+
+            populationMin->Initialize(size, size*size);
+            populationMax->Initialize(size, size*size);
+
+            unsigned int populationSize(2*size);
+            unsigned int tryCount(std::min(sqrt(size), 2.)*size);
+
+            for (int step(0); step < 3; ++step)
             {
-                std::swap(min, max);
-                std::swap(minValue, maxValue);
+                LOG_ADMIN_INFO << "Step: " << step;
+                if (step < 1)
+                {
+                    result.AddItem(populationMin->Genetic(&MutationRandomChangeFast, populationSize, tryCount));
+                    result.AddItem(populationMax->Genetic(&MutationRandomChangeFast, populationSize, tryCount));
+                }
+
+                if (step < 2)
+                {
+                    result.AddItem(populationMin->Genetic(&MutationRandomChangeNormal, populationSize, tryCount));
+                    result.AddItem(populationMax->Genetic(&MutationRandomChangeNormal, populationSize, tryCount));
+                }
+
+                result.AddItem(populationMin->Genetic(&MutationRandomChangeSlow, populationSize, tryCount));
+                result.AddItem(populationMax->Genetic(&MutationRandomChangeSlow, populationSize, tryCount));
+
+                if (step < 1)
+                {
+                    result.AddItem(populationMin->Genetic(&MutationNearChangeFast, populationSize, tryCount));
+                    result.AddItem(populationMax->Genetic(&MutationNearChangeFast, populationSize, tryCount));
+                }
+
+                if (step < 2)
+                {
+                    result.AddItem(populationMin->Genetic(&MutationNearChangeNormal, populationSize, tryCount));
+                    result.AddItem(populationMax->Genetic(&MutationNearChangeNormal, populationSize, tryCount));
+                }
+
+                result.AddItem(populationMin->Genetic(&MutationNearChangeSlow, populationSize, tryCount));
+                result.AddItem(populationMax->Genetic(&MutationNearChangeSlow, populationSize, tryCount));
+
+                tryCount /= 2;
+                populationSize *= 2;
             }
-            population.push_back(min);
-            population.push_back(max);
         }
 
         Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
-        Save("../result/" + time + "out", population, false);
-        Save("../result/" + time + "out.people", population, true);
-        Save2("../result/" + time + "azspcs", population);
-        TPopulation best;
 
-        Load("../result/best", best);
-        Compare(best, population);
-        Save("../result/best", best, false);
+        result.Save("../result/" + time + ".current", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
 
-        Save("../result/" + time + "best.out", best, false);
-        Save("../result/" + time + "best.out.people", best, true);
-        Save2("../result/" + time + "best.azspcs", best);
+        best.Merge(result);
+
+        best.Save("../result/" + time + ".best", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
+        best.Save("../result/best");
     }
+
+    Field::ReleaseClass(maxSize);
 
     return true;
 }

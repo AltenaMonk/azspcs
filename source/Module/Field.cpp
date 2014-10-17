@@ -1,5 +1,7 @@
 #include "Field.h"
 
+#include <cstring>
+
 #include <algorithm>
 #include <utility>
 #include <vector>
@@ -8,6 +10,8 @@
 
 namespace azspcs
 {
+
+long long ** Field::m_nod = NULL;
 
 Field::Field()
     : m_size(0)
@@ -19,6 +23,39 @@ Field::Field()
 
 Field::~Field()
 {
+}
+
+Field::TField Field::Clone() const
+{
+    TField field(new Field());
+    field->m_size = m_size;
+    field->m_data.reset(new long long[m_size * m_size]);
+    memcpy(field->m_data.get(), m_data.get(), m_size * m_size * sizeof(m_data[0]));
+    field->m_value = m_value;
+    field->m_isValue = m_isValue;
+    return field;
+}
+
+void Field::InitializeClass(unsigned int maxSize)
+{
+    m_nod = new long long * [maxSize*maxSize + 1];
+    for (int y(1); y <= maxSize*maxSize; ++y)
+    {
+        m_nod[y] = new long long [maxSize*maxSize + 1];
+        for (int x(1); x <= maxSize*maxSize; ++x)
+        {
+            m_nod[y][x] = NOD(y, x);
+        }
+    }
+}
+
+void Field::ReleaseClass(unsigned int maxSize)
+{
+    for (int y(1); y <= maxSize; ++y)
+    {
+        delete [] m_nod[y];
+    }
+    delete [] m_nod;
 }
 
 void Field::Initialize(unsigned int size)
@@ -40,7 +77,7 @@ void Field::Load(Library::String const & data, unsigned int size)
     {
         for (int y(0); y < GetSize(); ++y)
         {
-            Set(x, y, Library::SmartCast<long long>(strings[x*size+y], 0));
+            Set(x, y, Library::SmartCast<long long>(strings[x*size+y]));
         }
     }
 
@@ -48,19 +85,22 @@ void Field::Load(Library::String const & data, unsigned int size)
     m_isValue = false;
 }
 
-void Field::Save(Library::String & data) const
+Library::String Field::Save() const
 {
+    Library::String data("");
     for (unsigned int x(0); x < GetSize(); ++x)
     {
         for (unsigned int y(0); y < GetSize(); ++y)
         {
-            data += Library::SmartCast<Library::String>(Get(x, y), "") + " ";
+            data += Library::SmartCast<Library::String>(Get(x, y)) + " ";
         }
     }
+    return data;
 }
 
-void Field::Save2(Library::String & data) const
+Library::String Field::Save2() const
 {
+    Library::String data("");
     Library::String semicolonX("");
     for (unsigned int x(0); x < GetSize(); ++x)
     {
@@ -68,12 +108,13 @@ void Field::Save2(Library::String & data) const
         Library::String semicolonY("");
         for (unsigned int y(0); y < GetSize(); ++y)
         {
-            data += semicolonY + Library::SmartCast<Library::String>(Get(x, y), "");
+            data += semicolonY + Library::SmartCast<Library::String>(Get(x, y));
             semicolonY = ",";
         }
         data += ")";
         semicolonX = ",\n";
     }
+    return data;
 }
 
 long long Field::GetValue() const
@@ -103,7 +144,17 @@ void Field::Set(unsigned int x, unsigned int y, long long value)
     m_data[y*GetSize() + x] = value;
 }
 
-long long Field::NOD(long long a, long long b) const
+bool Field::operator>(Field const & other) const
+{
+    return GetValue() > other.GetValue();
+}
+
+bool Field::operator<(Field const & other) const
+{
+    return GetValue() < other.GetValue();
+}
+
+long long Field::NOD(long long a, long long b)
 {
     if (a == b)
     {
@@ -112,7 +163,7 @@ long long Field::NOD(long long a, long long b) const
     return NOD(std::max(a, b) - std::min(a, b), std::min(a, b));
 }
 
-long long Field::Distance(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2) const
+long long Field::Distance(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2)
 {
     unsigned int xMin(std::min(x1, x2));
     unsigned int xMax(std::max(x1, x2));
@@ -121,7 +172,7 @@ long long Field::Distance(unsigned int x1, unsigned int y1, unsigned int x2, uns
     return (xMax-xMin)*(xMax-xMin)+(yMax-yMin)*(yMax-yMin);
 }
 
-long long Field::Function() const
+inline long long Field::Function() const
 {
     long long result(0);
     for (unsigned int x1(0); x1 < GetSize(); ++x1)
@@ -132,7 +183,7 @@ long long Field::Function() const
             {
                 for (unsigned int y2(0); y2 < GetSize(); ++y2)
                 {
-                    result += NOD(Get(x1, y1), Get(x2, y2)) * Distance(x1, y1, x2, y2);
+                    result += m_nod[Get(x1, y1)][Get(x2, y2)] * Distance(x1, y1, x2, y2);
                 }
             }
         }
@@ -158,5 +209,16 @@ void Field::RandomFill()
         Set(places[z].first, places[z].second, z + 1);
     }
 }
+
+bool operator>(TField const & first, TField const & second)
+{
+    return *first > *second;
+}
+
+bool operator<(TField const & first, TField const & second)
+{
+    return *first < *second;
+}
+
 
 } // namespace azspcs

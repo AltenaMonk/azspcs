@@ -5,7 +5,7 @@ linker		:= g++
 
 program_name	:= $(root_dir)/binaries/azspcs
 source_dir	:= $(root_dir)/source
-library		:= $(root_dir)/../thirdparty/Library/source
+library		:= $(root_dir)/../thirdparty/Library/include
 extended_dir	:= $(library)
 include_dir	:= $(library)
 object_dir	:= $(root_dir)/object

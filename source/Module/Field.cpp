@@ -175,17 +175,17 @@ long long Field::Distance(unsigned int x1, unsigned int y1, unsigned int x2, uns
 inline long long Field::Function() const
 {
     long long result(0);
-    for (unsigned int x1(0); x1 < GetSize(); ++x1)
+    unsigned int size(GetSize()*GetSize());
+    for (unsigned int a(0); a < size; ++a)
     {
-        for (unsigned int y1(0); y1 < GetSize(); ++y1)
+        unsigned int x1 = a / GetSize();
+        unsigned int y1 = a % GetSize();
+        long long * values(m_nod[Get(x1, y1)]);
+        for (unsigned int b(a+1); b < size; ++b)
         {
-            for (unsigned int x2(0); x2 < GetSize(); ++x2)
-            {
-                for (unsigned int y2(0); y2 < GetSize(); ++y2)
-                {
-                    result += m_nod[Get(x1, y1)][Get(x2, y2)] * Distance(x1, y1, x2, y2);
-                }
-            }
+            unsigned int x2 = b / GetSize();
+            unsigned int y2 = b % GetSize();
+            result += values[Get(x2, y2)] * Distance(x1, y1, x2, y2);
         }
     }
     return result;

@@ -1,6 +1,7 @@
 #include "Result.h"
 
 #include <Library/File.h>
+#include <Library/LogHelper.h>
 #include <Library/SmartCast.h>
 
 namespace azspcs
@@ -97,6 +98,8 @@ void Result::Save(Library::String const & filename, Library::String const & addi
     }
     if (isPeopleView)
     {
+        LOG_ADMIN_INFO << "Result " << Library::SmartCast<Library::String>(sum);
+        LOG_ADMIN_INFO << "\n" << peopleBefore;
         people = additionalInformation + Library::SmartCast<Library::String>(sum) + "\n\n" + peopleBefore + "\n\n" + people;
     }
     Library::File(filename + ".out", true).ReWrite(data);

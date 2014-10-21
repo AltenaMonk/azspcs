@@ -93,38 +93,33 @@ inline void MutationSpeed(Mutation mutation, unsigned long count, TField field)
     }
 }
 
+inline void MutationRandomChangeFlash(TField field)
+{
+    unsigned long count(9*field->GetSize());
+    MutationSpeed(&MutationRandomChange, count, field);
+}
+
 inline void MutationRandomChangeFast(TField field)
 {
-    unsigned long count(sqrt(field->GetSize())*field->GetSize());
+    unsigned long count(3*field->GetSize());
     MutationSpeed(&MutationRandomChange, count, field);
 }
 
 inline void MutationRandomChangeNormal(TField field)
 {
-    unsigned long count(field->GetSize() + Random(field->GetSize()));
+    unsigned long count(field->GetSize());
     MutationSpeed(&MutationRandomChange, count, field);
 }
 
 inline void MutationRandomChangeSlow(TField field)
 {
+    unsigned long count(field->GetSize()/3);
+    MutationSpeed(&MutationRandomChange, count, field);
+}
+
+inline void MutationRandomChangeOnce(TField field)
+{
     MutationSpeed(&MutationRandomChange, 1, field);
-}
-
-inline void MutationNearChangeFast(TField field)
-{
-    unsigned long count(sqrt(field->GetSize())*field->GetSize());
-    MutationSpeed(&MutationNearChange, count, field);
-}
-
-inline void MutationNearChangeNormal(TField field)
-{
-    unsigned long count(field->GetSize() + Random(field->GetSize()));
-    MutationSpeed(&MutationNearChange, count, field);
-}
-
-inline void MutationNearChangeSlow(TField field)
-{
-    MutationSpeed(&MutationNearChange, 1, field);
 }
 
 bool azspcsModule::ParseCommandLineParameters(TParameters const & parameters, bool IsManagersReady)
@@ -145,7 +140,7 @@ bool azspcsModule::ParseCommandLineParameters(TParameters const & parameters, bo
         return true;
     }
 
-    LOG_PROG_INFO <<  "Command line parameters:";
+    LOG_ADMIN_INFO <<  "Command line parameters:";
     for (size_t i(0); i < parameters.size(); ++i)
     {
         LOG_PROG_INFO << i << " - " << parameters[i];
@@ -163,11 +158,11 @@ bool azspcsModule::ParseCommandLineParameters(TParameters const & parameters, bo
 
     for (unsigned int counter(0); counter < 10000; ++counter)
     {
-        LOG_ADMIN_INFO << "Counter: " << counter;
+        LOG_ADMIN_INFO << "        Counter: " << counter;
         Result result;
         for (unsigned int size(minSize); size <= maxSize; ++size)
         {
-            LOG_ADMIN_INFO << "Size: " << size;
+            LOG_ADMIN_INFO << "     Size: " << size;
             boost::shared_ptr<Population<std::less<TField> > > populationMin(new Population<std::less<TField> >());
             boost::shared_ptr<Population<std::greater<TField> > > populationMax(new Population<std::greater<TField> >());
 
@@ -175,43 +170,40 @@ bool azspcsModule::ParseCommandLineParameters(TParameters const & parameters, bo
             populationMax->Initialize(size, size*size);
 
             unsigned int populationSize(2*size);
-            unsigned int tryCount(std::min(sqrt(size), 2.)*size);
+            unsigned int tryCount(std::min(sqrt(size), 4.)*size);
 
-            for (int step(0); step < 3; ++step)
+            for (int step(0); step < 5; ++step)
             {
                 LOG_ADMIN_INFO << "Step: " << step;
                 if (step < 1)
+                {
+                    result.AddItem(populationMin->Genetic(&MutationRandomChangeFlash, populationSize, tryCount));
+                    result.AddItem(populationMax->Genetic(&MutationRandomChangeFlash, populationSize, tryCount));
+                }
+
+                if (step < 2)
                 {
                     result.AddItem(populationMin->Genetic(&MutationRandomChangeFast, populationSize, tryCount));
                     result.AddItem(populationMax->Genetic(&MutationRandomChangeFast, populationSize, tryCount));
                 }
 
-                if (step < 2)
+                if (step < 3)
                 {
                     result.AddItem(populationMin->Genetic(&MutationRandomChangeNormal, populationSize, tryCount));
                     result.AddItem(populationMax->Genetic(&MutationRandomChangeNormal, populationSize, tryCount));
                 }
 
-                result.AddItem(populationMin->Genetic(&MutationRandomChangeSlow, populationSize, tryCount));
-                result.AddItem(populationMax->Genetic(&MutationRandomChangeSlow, populationSize, tryCount));
-
-                if (step < 1)
+                if (step < 4)
                 {
-                    result.AddItem(populationMin->Genetic(&MutationNearChangeFast, populationSize, tryCount));
-                    result.AddItem(populationMax->Genetic(&MutationNearChangeFast, populationSize, tryCount));
+                    result.AddItem(populationMin->Genetic(&MutationRandomChangeSlow, populationSize, tryCount));
+                    result.AddItem(populationMax->Genetic(&MutationRandomChangeSlow, populationSize, tryCount));
                 }
 
-                if (step < 2)
-                {
-                    result.AddItem(populationMin->Genetic(&MutationNearChangeNormal, populationSize, tryCount));
-                    result.AddItem(populationMax->Genetic(&MutationNearChangeNormal, populationSize, tryCount));
-                }
+                result.AddItem(populationMin->Genetic(&MutationRandomChangeOnce, populationSize, tryCount));
+                result.AddItem(populationMax->Genetic(&MutationRandomChangeOnce, populationSize, tryCount));
 
-                result.AddItem(populationMin->Genetic(&MutationNearChangeSlow, populationSize, tryCount));
-                result.AddItem(populationMax->Genetic(&MutationNearChangeSlow, populationSize, tryCount));
-
-                tryCount /= 2;
-                populationSize *= 2;
+                populationSize *= 1.5;
+                tryCount *= 1.5;
             }
         }
 

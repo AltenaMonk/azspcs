@@ -42,7 +42,10 @@ public:
 
     inline void Set(unsigned int x, unsigned int y, TType value)
     {
+        m_value = 0;
         m_isValue = false;
+        m_isPreValue = false;
+        m_dirty[y*GetSize() + x] = 1;
         m_data[y*GetSize() + x] = value;
     }
 
@@ -69,7 +72,7 @@ private:
     unsigned int m_size;
     boost::scoped_array<TType> m_data;
     boost::scoped_array<TType> m_rawData;
-    boost::scoped_array<bool> m_dirty;
+    boost::scoped_array<unsigned int> m_dirty;
 
     mutable long long m_value;
     mutable bool m_isPreValue;

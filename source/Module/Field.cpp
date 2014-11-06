@@ -36,7 +36,7 @@ Field::TField Field::Clone() const
     memcpy(field->m_data.get(), m_data.get(), m_size * m_size * sizeof(m_data[0]));
     field->m_rawData.reset(new TType[m_size * m_size * m_size * m_size]);
     memcpy(field->m_rawData.get(), m_rawData.get(), m_size * m_size * m_size * m_size * sizeof(m_rawData[0]));
-    field->m_dirty.reset(new bool[m_size * m_size]);
+    field->m_dirty.reset(new unsigned int[m_size * m_size]);
     memcpy(field->m_dirty.get(), m_dirty.get(), m_size * m_size * sizeof(m_dirty[0]));
     field->m_value = m_value;
     field->m_isPreValue = m_isPreValue;
@@ -71,10 +71,11 @@ void Field::Initialize(unsigned int size)
     m_size = size;
     m_data.reset(new TType[size * size]());
     m_rawData.reset(new TType[size * size * size * size]());
-    m_dirty.reset(new bool[size * size]());
-    memset(m_dirty.get(), true, size * size * sizeof(m_dirty[0]));
+    m_dirty.reset(new unsigned int[size * size]());
+    memset(m_dirty.get(), 1, size * size * sizeof(m_dirty[0]));
     RandomFill();
     m_value = 0;
+    m_isPreValue = false;
     m_isValue = false;
 }
 
@@ -83,8 +84,8 @@ void Field::Load(Library::String const & data, unsigned int size)
     m_size = size;
     m_data.reset(new TType[size * size]());
     m_rawData.reset(new TType[size * size * size * size]());
-    m_dirty.reset(new bool[size * size]());
-    memset(m_dirty.get(), true, size * size * sizeof(m_dirty[0]));
+    m_dirty.reset(new unsigned int[size * size]());
+    memset(m_dirty.get(), 1, size * size * sizeof(m_dirty[0]));
 
     Library::String::TStrings strings = data.Split(" ");
     for (int x(0); x < GetSize(); ++x)
@@ -94,10 +95,6 @@ void Field::Load(Library::String const & data, unsigned int size)
             Set(x, y, Library::SmartCast<TType>(strings[x*size+y]));
         }
     }
-
-    m_value = 0;
-    m_isValue = false;
-    m_isPreValue = false;
 }
 
 Library::String Field::Save() const
@@ -152,6 +149,7 @@ long long Field::GetValue() const
     }
 
     m_isValue = true;
+    m_value = result;
 
     return result;
 }
@@ -164,11 +162,6 @@ void Field::Swap(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int
     std::swap(first, second);
     Set(x1, y1, first);
     Set(x2, y2, second);
-
-    /// Пересчитываем заново все требуемые значения.
-    m_dirty[x1 * GetSize() * GetSize() + y1] = true;
-    m_dirty[x2 * GetSize() * GetSize() + y2] = true;
-    m_isPreValue = false;
 }
 
 Field::TType Field::NOD(TType a, TType b)
@@ -196,9 +189,9 @@ void Field::PreValue() const
         unsigned int size(GetSize() * GetSize());
         for (unsigned int a(0); a < size; ++a)
         {
-            if (m_dirty[a] == true)
+            if (m_dirty[a] == 1)
             {
-                Recalc(a / size, a % size);
+                Recalc(a % GetSize(), a / GetSize());
             }
         }
         m_isPreValue = true;
@@ -233,7 +226,7 @@ void Field::Recalc(unsigned int x, unsigned int y) const
             }
         }
     }
-    m_dirty[x * size + y] = false;
+    m_dirty[x * GetSize() + y] = 0;
 }
 
 void Field::RandomFill()

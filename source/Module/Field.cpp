@@ -203,30 +203,30 @@ void Field::Recalc(unsigned int x, unsigned int y) const
 {
     unsigned int size(GetSize()*GetSize());
     {
-        unsigned int a(x * GetSize() + y);
+        unsigned int a(y * GetSize() + x);
         {
             TType * values(m_nod[Get(x, y)]);
             for (unsigned int b(a+1); b < size; ++b)
             {
-                unsigned int x2 = b / GetSize();
-                unsigned int y2 = b % GetSize();
+                unsigned int x2 = b % GetSize();
+                unsigned int y2 = b / GetSize();
                 m_rawData[a * size + b] = values[Get(x2, y2)] * Distance(x, y, x2, y2);
             }
         }
     }
     {
-        unsigned int b(x * GetSize() + y);
+        unsigned int b(y * GetSize() + x);
         TType * values(m_nod[Get(x, y)]);
         for (unsigned int a(0); a < b; ++a)
         {
-            unsigned int x1 = a / GetSize();
-            unsigned int y1 = a % GetSize();
+            unsigned int x1 = a % GetSize();
+            unsigned int y1 = a / GetSize();
             {
                 m_rawData[a*size + b] = values[Get(x1, y1)] * Distance(x1, y1, x, y);
             }
         }
     }
-    m_dirty[x * GetSize() + y] = 0;
+    m_dirty[y * GetSize() + x] = 0;
 }
 
 void Field::RandomFill()

@@ -5,6 +5,7 @@
 
 #include <boost/bind.hpp>
 
+#include <Library/ApplicationParameters.h>
 #include <Library/BaseSocket.h>
 #include <Library/LogManager.h>
 #ifdef UNITTEST
@@ -122,29 +123,120 @@ inline void MutationRandomChangeOnce(TField field)
     MutationSpeed(&MutationRandomChange, 1, field);
 }
 
-bool azspcsModule::ParseCommandLineParameters(TParameters const & parameters, bool IsManagersReady)
+inline void Invert(unsigned int & value, unsigned int size)
+{
+    value = size - 1 - value;
+}
+
+inline void Detect(unsigned int & a, unsigned int & b, unsigned int value, unsigned int size)
+{
+    a = value / size;
+    b = value % size;
+}
+
+template <char TMethod>
+inline void GetXY(unsigned int & x, unsigned int & y, unsigned int value, unsigned int size);
+
+template <>
+inline void GetXY<0>(unsigned int & x, unsigned int & y, unsigned int value, unsigned int size)
+{
+    Detect(x, y, value, size);
+}
+
+template <>
+inline void GetXY<1>(unsigned int & x, unsigned int & y, unsigned int value, unsigned int size)
+{
+    Detect(x, y, value, size);
+    Invert(x, size);
+}
+
+template <>
+inline void GetXY<2>(unsigned int & x, unsigned int & y, unsigned int value, unsigned int size)
+{
+    Detect(x, y, value, size);
+    Invert(y, size);
+}
+
+template <>
+inline void GetXY<3>(unsigned int & x, unsigned int & y, unsigned int value, unsigned int size)
+{
+    Detect(x, y, value, size);
+    Invert(x, size);
+    Invert(y, size);
+}
+
+template <>
+inline void GetXY<4>(unsigned int & x, unsigned int & y, unsigned int value, unsigned int size)
+{
+    Detect(y, x, value, size);
+}
+
+template <>
+inline void GetXY<5>(unsigned int & x, unsigned int & y, unsigned int value, unsigned int size)
+{
+    Detect(y, x, value, size);
+    Invert(x, size);
+}
+
+template <>
+inline void GetXY<6>(unsigned int & x, unsigned int & y, unsigned int value, unsigned int size)
+{
+    Detect(y, x, value, size);
+    Invert(y, size);
+}
+
+template <>
+inline void GetXY<7>(unsigned int & x, unsigned int & y, unsigned int value, unsigned int size)
+{
+    Detect(y, x, value, size);
+    Invert(x, size);
+    Invert(y, size);
+}
+
+template <typename TCompare, char TMethod>
+long long MutationUpdateFirst(TField field)
+{
+    TCompare compareFunctor;
+    unsigned int size(field->GetSize());
+    unsigned int maxValue(size * size);
+    TField bestValue(field->Clone());
+    for (int value1(0); value1 < maxValue; ++value1)
+    {
+
+        unsigned int x1(0), y1(0);
+        GetXY<TMethod>(x1, y1, value1, size);
+        for (int value2(value1 + 1); value2 < maxValue; ++value2)
+        {
+            unsigned int x2(0), y2(0);
+            GetXY<TMethod>(x2, y2, value2, size);
+            field->Swap(x1, y1, x2, y2);
+
+            if (compareFunctor(field, bestValue))
+            {
+                return std::max(bestValue->GetValue(), field->GetValue()) - std::min(bestValue->GetValue(), field->GetValue());
+            }
+
+            field->Swap(x1, y1, x2, y2);
+        }
+    }
+    return 0;
+}
+
+bool azspcsModule::ParseCommandLineParameters(Library::ApplicationParameters const & parameters, bool IsManagersReady)
 {
     /// @internal Без инициализированных логов проверяем только версию:
     if (IsManagersReady == false)
     {
-        /// @internal Если любой из параметров равен "-v" или "--version" - выводим версию и выходим
-        for (size_t i(1); i < parameters.size(); ++i)
+        if (parameters.Is("--version", "-v"))
         {
-            if ((Library::String(parameters[i]) == "-v") || (Library::String(parameters[i]) == "--version"))
-            {
-                Library::Module * module(Library::GetModule());
-                std::cout << module->GetApplicationName() << " " << module->GetApplicationVersion() << " " << module->GetApplicationDate() << " " << std::endl;
-                return false;
-            }
+            Library::Module * module(Library::GetModule());
+            std::cout << module->GetApplicationName() << " " << module->GetApplicationVersion() << " " << module->GetApplicationDate() << " " << std::endl;
+            return false;
         }
         return true;
     }
 
-    LOG_ADMIN_INFO <<  "Command line parameters:";
-    for (size_t i(0); i < parameters.size(); ++i)
-    {
-        LOG_PROG_INFO << i << " - " << parameters[i];
-    }
+    parameters.Log();
 
     srand(time(NULL));
 
@@ -159,62 +251,122 @@ bool azspcsModule::ParseCommandLineParameters(TParameters const & parameters, bo
     for (unsigned int counter(0); counter < 10000; ++counter)
     {
         LOG_ADMIN_INFO << "        Counter: " << counter;
-        Result result;
-        for (unsigned int size(minSize); size <= maxSize; ++size)
+//        Result result;
+//        for (unsigned int size(minSize); size <= maxSize; ++size)
+//        {
+//            LOG_ADMIN_INFO << "     Size: " << size;
+//            boost::shared_ptr<Population<std::less<TField> > > populationMin(new Population<std::less<TField> >());
+//            boost::shared_ptr<Population<std::greater<TField> > > populationMax(new Population<std::greater<TField> >());
+
+//            populationMin->Initialize(size, size*size);
+//            populationMax->Initialize(size, size*size);
+
+//            unsigned int populationSize(/*2**/size);
+//            unsigned int tryCount(std::min(sqrt(size), 4.)/**size*/);
+//            double multiplayer(1/*.5*/);
+
+//            for (int step(0); step < 5; ++step)
+//            {
+//                LOG_ADMIN_INFO << "Step: " << step;
+//                if (step < 1)
+//                {
+//                    result.AddItem(populationMin->Genetic(&MutationRandomChangeFlash, populationSize, tryCount));
+//                    result.AddItem(populationMax->Genetic(&MutationRandomChangeFlash, populationSize, tryCount));
+//                }
+
+//                if (step < 2)
+//                {
+//                    result.AddItem(populationMin->Genetic(&MutationRandomChangeFast, populationSize, tryCount));
+//                    result.AddItem(populationMax->Genetic(&MutationRandomChangeFast, populationSize, tryCount));
+//                }
+
+//                if (step < 3)
+//                {
+//                    result.AddItem(populationMin->Genetic(&MutationRandomChangeNormal, populationSize, tryCount));
+//                    result.AddItem(populationMax->Genetic(&MutationRandomChangeNormal, populationSize, tryCount));
+//                }
+
+//                if (step < 4)
+//                {
+//                    result.AddItem(populationMin->Genetic(&MutationRandomChangeSlow, populationSize, tryCount));
+//                    result.AddItem(populationMax->Genetic(&MutationRandomChangeSlow, populationSize, tryCount));
+//                }
+
+//                result.AddItem(populationMin->Genetic(&MutationRandomChangeOnce, populationSize, tryCount));
+//                result.AddItem(populationMax->Genetic(&MutationRandomChangeOnce, populationSize, tryCount));
+
+//                populationSize *= multiplayer;
+//                tryCount *= multiplayer;
+//            }
+//        }
+
+//        Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
+
+//        result.Save("../result/" + time + ".current", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
+
+//        best.Merge(result);
+
+//        best.Save("../result/" + time + ".best", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
+
         {
-            LOG_ADMIN_INFO << "     Size: " << size;
-            boost::shared_ptr<Population<std::less<TField> > > populationMin(new Population<std::less<TField> >());
-            boost::shared_ptr<Population<std::greater<TField> > > populationMax(new Population<std::greater<TField> >());
-
-            populationMin->Initialize(size, size*size);
-            populationMax->Initialize(size, size*size);
-
-            unsigned int populationSize(2*size);
-            unsigned int tryCount(std::min(sqrt(size), 4.)*size);
-
-            for (int step(0); step < 5; ++step)
             {
-                LOG_ADMIN_INFO << "Step: " << step;
-                if (step < 1)
-                {
-                    result.AddItem(populationMin->Genetic(&MutationRandomChangeFlash, populationSize, tryCount));
-                    result.AddItem(populationMax->Genetic(&MutationRandomChangeFlash, populationSize, tryCount));
-                }
+                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 0>, &MutationUpdateFirst<std::greater<TField>, 0>, 10);
+                Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
+                best.Save("../result/" + time + ".best2", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
+                best.Save("../result/best");
+            }
 
-                if (step < 2)
-                {
-                    result.AddItem(populationMin->Genetic(&MutationRandomChangeFast, populationSize, tryCount));
-                    result.AddItem(populationMax->Genetic(&MutationRandomChangeFast, populationSize, tryCount));
-                }
+            {
+                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 1>, &MutationUpdateFirst<std::greater<TField>, 1>, 10);
+                Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
+                best.Save("../result/" + time + ".best2", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
+                best.Save("../result/best");
+            }
 
-                if (step < 3)
-                {
-                    result.AddItem(populationMin->Genetic(&MutationRandomChangeNormal, populationSize, tryCount));
-                    result.AddItem(populationMax->Genetic(&MutationRandomChangeNormal, populationSize, tryCount));
-                }
+            {
+                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 2>, &MutationUpdateFirst<std::greater<TField>, 2>, 10);
+                Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
+                best.Save("../result/" + time + ".best2", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
+                best.Save("../result/best");
+            }
 
-                if (step < 4)
-                {
-                    result.AddItem(populationMin->Genetic(&MutationRandomChangeSlow, populationSize, tryCount));
-                    result.AddItem(populationMax->Genetic(&MutationRandomChangeSlow, populationSize, tryCount));
-                }
+            {
+                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 3>, &MutationUpdateFirst<std::greater<TField>, 3>, 10);
+                Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
+                best.Save("../result/" + time + ".best2", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
+                best.Save("../result/best");
+            }
 
-                result.AddItem(populationMin->Genetic(&MutationRandomChangeOnce, populationSize, tryCount));
-                result.AddItem(populationMax->Genetic(&MutationRandomChangeOnce, populationSize, tryCount));
+            {
+                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 4>, &MutationUpdateFirst<std::greater<TField>, 4>, 10);
+                Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
+                best.Save("../result/" + time + ".best2", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
+                best.Save("../result/best");
+            }
 
-                populationSize *= 1.5;
-                tryCount *= 1.5;
+            {
+                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 5>, &MutationUpdateFirst<std::greater<TField>, 5>, 10);
+                Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
+                best.Save("../result/" + time + ".best2", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
+                best.Save("../result/best");
+            }
+
+            {
+                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 6>, &MutationUpdateFirst<std::greater<TField>, 6>, 10);
+                Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
+                best.Save("../result/" + time + ".best2", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
+                best.Save("../result/best");
+            }
+
+            {
+                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 7>, &MutationUpdateFirst<std::greater<TField>, 7>, 10);
+                Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
+                best.Save("../result/" + time + ".best2", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
+                best.Save("../result/best");
             }
         }
 
-        Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
-
-        result.Save("../result/" + time + ".current", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
-
-        best.Merge(result);
-
-        best.Save("../result/" + time + ".best", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
-        best.Save("../result/best");
+//        best.Save("../result/best");
     }
 
     Field::ReleaseClass(maxSize);
@@ -222,7 +374,7 @@ bool azspcsModule::ParseCommandLineParameters(TParameters const & parameters, bo
     return true;
 }
 
-bool azspcsModule::InitializeManagers(Library::BaseModuleManager::TParameters const & parameters)
+bool azspcsModule::InitializeManagers(Library::ApplicationParameters const & parameters)
 {
     return Library::Module::InitializeManagers(parameters) &&
             InitLogManager();
@@ -236,7 +388,7 @@ void azspcsModule::InitFactory()
 }
 
 template <typename TType>
-bool azspcsModule::InitManager(Library::BaseModuleManager::TParameters const & parameters)
+bool azspcsModule::InitManager(Library::ApplicationParameters const & parameters)
 {
     boost::shared_ptr<Library::BaseModuleManager> manager(new TType());
     bool result(manager->Initialize(parameters));
@@ -244,7 +396,7 @@ bool azspcsModule::InitManager(Library::BaseModuleManager::TParameters const & p
     return result;
 }
 
-void azspcsModule::InitializeThreads(Library::BaseModuleManager::TParameters const & )
+void azspcsModule::InitializeThreads(Library::ApplicationParameters const & )
 {
 }
 

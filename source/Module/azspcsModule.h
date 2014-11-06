@@ -20,17 +20,17 @@ public:
     virtual ~azspcsModule();
 
     virtual void InitializeFactories();
-    virtual bool ParseCommandLineParameters(TParameters const & parameters, bool isManagersReady);
-    virtual bool InitializeManagers(Library::BaseModuleManager::TParameters const & parameters);
+    virtual bool ParseCommandLineParameters(Library::ApplicationParameters const & parameters, bool isManagersReady);
+    virtual bool InitializeManagers(Library::ApplicationParameters const & parameters);
 
 private:
     template <typename TType>
     void InitFactory();
 
     template <typename TType>
-    bool InitManager(Library::BaseModuleManager::TParameters const & parameters);
+    bool InitManager(Library::ApplicationParameters const & parameters);
 
-    virtual void InitializeThreads(Library::BaseModuleManager::TParameters const & );
+    virtual void InitializeThreads(Library::ApplicationParameters const & );
 
     bool InitLogManager();
 

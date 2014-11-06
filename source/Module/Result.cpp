@@ -110,4 +110,42 @@ void Result::Save(Library::String const & filename, Library::String const & addi
     }
 }
 
+void Result::UpdateFirst(MutationFunctor functorMin, MutationFunctor functorMax, unsigned int tryCount)
+{
+    for (TFields::iterator iterator(m_fields.begin()); iterator != m_fields.end(); ++iterator)
+    {
+//        if (iterator->second.first->GetSize() <= 21)
+//        {
+//            continue;
+//        }
+        for (unsigned int i(0); i < tryCount; ++i)
+        {
+            long long value = functorMin(iterator->second.first);
+            if (value > 0)
+            {
+                LOG_PROG_INFO << "Update min for " << iterator->second.first->GetSize() << " on " << value;
+            }
+            else
+            {
+                LOG_PROG_INFO << "No updates min for " << iterator->second.first->GetSize();
+                break;
+            }
+        }
+        for (unsigned int i(0); i < tryCount; ++i)
+        {
+            long long value = functorMax(iterator->second.second);
+            if (value > 0)
+            {
+                LOG_PROG_INFO << "Update max for " << iterator->second.second->GetSize() << " on " << value;
+            }
+            else
+            {
+                LOG_PROG_INFO << "No updates max for " << iterator->second.first->GetSize();
+                break;
+            }
+        }
+    }
+}
+
+
 } // namespace azspcs

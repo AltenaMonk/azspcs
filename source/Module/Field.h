@@ -13,6 +13,7 @@ class Field
 {
 public:
     typedef boost::shared_ptr<Field> TField;
+    typedef unsigned int TType;
 
     Field();
     ~Field();
@@ -29,34 +30,65 @@ public:
     Library::String Save2() const;
 
     long long GetValue() const;
-    unsigned int GetSize() const;
+    inline unsigned int GetSize() const
+    {
+        return m_size;
+    }
 
-    long long Get(unsigned int x, unsigned int y) const;
-    void Set(unsigned int x, unsigned int y, long long value);
+    inline Field::TType Get(unsigned int x, unsigned int y) const
+    {
+        return m_data[y*GetSize() + x];
+    }
 
-    bool operator>(Field const & other) const;
-    bool operator<(Field const & other) const;
+    inline void Set(unsigned int x, unsigned int y, TType value)
+    {
+        m_isValue = false;
+        m_data[y*GetSize() + x] = value;
+    }
+
+    void Swap(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2);
+
+    inline bool operator>(Field const & other) const
+    {
+        return GetValue() > other.GetValue();
+    }
+
+    inline bool operator<(Field const & other) const
+    {
+        return GetValue() < other.GetValue();
+    }
 
 private:
-    static long long NOD(long long a, long long b);
-    static long long Distance(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2);
-    inline long long Function() const;
+    static TType NOD(TType a, TType b);
+    static TType Distance(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2);
+    void PreValue() const;
+    void Recalc(unsigned int x, unsigned int y) const;
 
     void RandomFill();
 
     unsigned int m_size;
-    boost::scoped_array<long long> m_data;
+    boost::scoped_array<TType> m_data;
+    boost::scoped_array<TType> m_rawData;
+    boost::scoped_array<bool> m_dirty;
 
     mutable long long m_value;
+    mutable bool m_isPreValue;
     mutable bool m_isValue;
 
-    static long long ** m_nod;
+    static TType ** m_nod;
 };
 
 typedef Field::TField TField;
 
-bool operator>(TField const & first, TField const & second);
-bool operator<(TField const & first, TField const & second);
+inline bool operator>(TField const & first, TField const & second)
+{
+    return *first > *second;
+}
+
+inline bool operator<(TField const & first, TField const & second)
+{
+    return *first < *second;
+}
 
 } // namespace azspcs
 

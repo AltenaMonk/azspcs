@@ -29,7 +29,7 @@ public:
     Library::String Save() const;
     Library::String Save2() const;
 
-    long long GetValue() const;
+    int GetValue() const;
     inline unsigned int GetSize() const
     {
         return m_size;
@@ -50,6 +50,7 @@ public:
     }
 
     void Swap(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2);
+    void Rotate(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, unsigned int x3, unsigned int y3);
 
     inline bool operator>(Field const & other) const
     {
@@ -59,6 +60,16 @@ public:
     inline bool operator<(Field const & other) const
     {
         return GetValue() < other.GetValue();
+    }
+
+    inline void SetType(int type)
+    {
+        m_type = std::max(type, 2);
+    }
+
+    inline int GetType() const
+    {
+        return m_type;
     }
 
 private:
@@ -74,11 +85,13 @@ private:
     boost::scoped_array<TType> m_rawData;
     boost::scoped_array<unsigned int> m_dirty;
 
-    mutable long long m_value;
+    mutable int m_value;
     mutable bool m_isPreValue;
     mutable bool m_isValue;
 
     static TType ** m_nod;
+
+    int m_type;
 };
 
 typedef Field::TField TField;

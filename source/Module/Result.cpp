@@ -76,7 +76,7 @@ void Result::Save(Library::String const & filename, Library::String const & addi
 
     Library::String semicolon(";");
 
-    long long sum(0.);
+    int sum(0.);
 
     for (TFields::const_iterator iterator(m_fields.begin()); iterator != m_fields.end(); ++iterator)
     {
@@ -87,7 +87,7 @@ void Result::Save(Library::String const & filename, Library::String const & addi
         if (isPeopleView)
         {
 
-            long long diff(iterator->second.second->GetValue() - iterator->second.first->GetValue());
+            int diff(iterator->second.second->GetValue() - iterator->second.first->GetValue());
             sum += diff;
             peopleBefore += Library::SmartCast<Library::String>(iterator->first) + "\t:" + Library::SmartCast<Library::String>(diff) + "\n";
         }
@@ -114,33 +114,43 @@ void Result::UpdateFirst(MutationFunctor functorMin, MutationFunctor functorMax,
 {
     for (TFields::iterator iterator(m_fields.begin()); iterator != m_fields.end(); ++iterator)
     {
-//        if (iterator->second.first->GetSize() <= 21)
-//        {
-//            continue;
-//        }
         for (unsigned int i(0); i < tryCount; ++i)
         {
-            long long value = functorMin(iterator->second.first);
-            if (value > 0)
+            TField field(iterator->second.first);
+            const int maxType(3);
+            if (field->GetType() <= maxType)
             {
-                LOG_PROG_INFO << "Update min for " << iterator->second.first->GetSize() << " on " << value;
+                int value = functorMin(field);
+                if (value > 0)
+                {
+                    field->SetType(2);
+                    LOG_PROG_INFO << "Update min " << field->GetType() << " for " << field->GetSize() << " on " << value;
+                }
+                else
+                {
+                    field->SetType(field->GetType() + 1);
+                    LOG_PROG_INFO << "No updates min " << field->GetType() << " for " << field->GetSize();
+                    break;
+                }
             }
             else
             {
-                LOG_PROG_INFO << "No updates min for " << iterator->second.first->GetSize();
-                break;
+                LOG_PROG_INFO << "No updates min " << field->GetType() << " for " << field->GetSize();
             }
         }
         for (unsigned int i(0); i < tryCount; ++i)
         {
-            long long value = functorMax(iterator->second.second);
+            TField field(iterator->second.second);
+            int value = functorMax(field);
             if (value > 0)
             {
-                LOG_PROG_INFO << "Update max for " << iterator->second.second->GetSize() << " on " << value;
+                field->SetType(2);
+                LOG_PROG_INFO << "Update max " << field->GetType() << " for " << field->GetSize() << " on " << value;
             }
             else
             {
-                LOG_PROG_INFO << "No updates max for " << iterator->second.first->GetSize();
+                field->SetType(field->GetType() + 1);
+                LOG_PROG_INFO << "No updates " << field->GetType() << " max for " << field->GetSize();
                 break;
             }
         }

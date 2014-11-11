@@ -51,9 +51,9 @@ void azspcsModule::InitializeFactories()
     InitFactory<Library::BaseSocket>();
 }
 
-long long Random(unsigned long x)
+int Random(unsigned long x)
 {
-    return rand()%static_cast<long long>(x);
+    return rand()%static_cast<int>(x);
 }
 
 typedef void (*Mutation)(TField);
@@ -64,24 +64,24 @@ inline void MutationRandomChange(TField field)
     unsigned int y1(Random(field->GetSize()));
     unsigned int x2(Random(field->GetSize()));
     unsigned int y2(Random(field->GetSize()));
-    long long value(field->Get(x1, y1));
+    int value(field->Get(x1, y1));
     field->Set(x1, y1, field->Get(x2, y2));
     field->Set(x2, y2, value);
 }
 
 inline void MutationNearChange(TField field)
 {
-    long long x1(Random(field->GetSize()));
-    long long y1(Random(field->GetSize()));
-    long long x2(x1 + Random(3) - 2);
-    long long y2(y1 + Random(3) - 2);
+    int x1(Random(field->GetSize()));
+    int y1(Random(field->GetSize()));
+    int x2(x1 + Random(3) - 2);
+    int y2(y1 + Random(3) - 2);
 
     if (x2 < 0 || x2 >= field->GetSize() || y2 < 0 || y2 >= field->GetSize())
     {
         return;
     }
 
-    long long value(field->Get(x1, y1));
+    int value(field->Get(x1, y1));
     field->Set(x1, y1, field->Get(x2, y2));
     field->Set(x2, y2, value);
 }
@@ -194,30 +194,71 @@ inline void GetXY<7>(unsigned int & x, unsigned int & y, unsigned int value, uns
 }
 
 template <typename TCompare, char TMethod>
-long long MutationUpdateFirst(TField field)
+int MutationUpdateFirst(TField field)
 {
     TCompare compareFunctor;
     unsigned int size(field->GetSize());
     unsigned int maxValue(size * size);
     TField bestValue(field->Clone());
-    for (int value1(0); value1 < maxValue; ++value1)
+    switch (field->GetType())
     {
-
-        unsigned int x1(0), y1(0);
-        GetXY<TMethod>(x1, y1, value1, size);
-        for (int value2(value1 + 1); value2 < maxValue; ++value2)
+        case 2:
         {
-            unsigned int x2(0), y2(0);
-            GetXY<TMethod>(x2, y2, value2, size);
-            field->Swap(x1, y1, x2, y2);
-
-            if (compareFunctor(field, bestValue))
+            for (int value1(0); value1 < maxValue; ++value1)
             {
-                return std::max(bestValue->GetValue(), field->GetValue()) - std::min(bestValue->GetValue(), field->GetValue());
-            }
+                unsigned int x1(0), y1(0);
+                GetXY<TMethod>(x1, y1, value1, size);
+                for (int value2(value1 + 1); value2 < maxValue; ++value2)
+                {
+                    unsigned int x2(0), y2(0);
+                    GetXY<TMethod>(x2, y2, value2, size);
+                    field->Swap(x1, y1, x2, y2);
 
-            field->Swap(x1, y1, x2, y2);
+                    if (compareFunctor(field, bestValue))
+                    {
+                        return std::max(bestValue->GetValue(), field->GetValue()) - std::min(bestValue->GetValue(), field->GetValue());
+                    }
+
+                    field->Swap(x1, y1, x2, y2);
+                }
+            }
         }
+        break;
+        case 3:
+        {
+            for (int value1(0); value1 < maxValue; ++value1)
+            {
+                unsigned int x1(0), y1(0);
+                GetXY<TMethod>(x1, y1, value1, size);
+                for (int value2(value1 + 1); value2 < maxValue; ++value2)
+                {
+                    unsigned int x2(0), y2(0);
+                    GetXY<TMethod>(x2, y2, value2, size);
+                    for (int value3(value2 + 1); value3 < maxValue; ++value3)
+                    {
+                        unsigned int x3(0), y3(0);
+                        GetXY<TMethod>(x3, y3, value3, size);
+
+                        field->Rotate(x1, y1, x2, y2, x3, y3);
+
+                        if (compareFunctor(field, bestValue))
+                        {
+                            return std::max(bestValue->GetValue(), field->GetValue()) - std::min(bestValue->GetValue(), field->GetValue());
+                        }
+
+                        field->Rotate(x1, y1, x2, y2, x3, y3);
+
+                        if (compareFunctor(field, bestValue))
+                        {
+                            return std::max(bestValue->GetValue(), field->GetValue()) - std::min(bestValue->GetValue(), field->GetValue());
+                        }
+
+                        field->Rotate(x1, y1, x2, y2, x3, y3);
+                    }
+                }
+            }
+        }
+        break;
     }
     return 0;
 }
@@ -309,57 +350,58 @@ bool azspcsModule::ParseCommandLineParameters(Library::ApplicationParameters con
 //        best.Save("../result/" + time + ".best", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
 
         {
+            int tryCount(1);
             {
-                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 0>, &MutationUpdateFirst<std::greater<TField>, 0>, 10);
+                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 0>, &MutationUpdateFirst<std::greater<TField>, 0>, tryCount);
                 Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
                 best.Save("../result/" + time + ".best2", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
                 best.Save("../result/best");
             }
 
             {
-                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 1>, &MutationUpdateFirst<std::greater<TField>, 1>, 10);
+                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 1>, &MutationUpdateFirst<std::greater<TField>, 1>, tryCount);
                 Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
                 best.Save("../result/" + time + ".best2", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
                 best.Save("../result/best");
             }
 
             {
-                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 2>, &MutationUpdateFirst<std::greater<TField>, 2>, 10);
+                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 2>, &MutationUpdateFirst<std::greater<TField>, 2>, tryCount);
                 Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
                 best.Save("../result/" + time + ".best2", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
                 best.Save("../result/best");
             }
 
             {
-                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 3>, &MutationUpdateFirst<std::greater<TField>, 3>, 10);
+                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 3>, &MutationUpdateFirst<std::greater<TField>, 3>, tryCount);
                 Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
                 best.Save("../result/" + time + ".best2", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
                 best.Save("../result/best");
             }
 
             {
-                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 4>, &MutationUpdateFirst<std::greater<TField>, 4>, 10);
+                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 4>, &MutationUpdateFirst<std::greater<TField>, 4>, tryCount);
                 Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
                 best.Save("../result/" + time + ".best2", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
                 best.Save("../result/best");
             }
 
             {
-                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 5>, &MutationUpdateFirst<std::greater<TField>, 5>, 10);
+                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 5>, &MutationUpdateFirst<std::greater<TField>, 5>, tryCount);
                 Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
                 best.Save("../result/" + time + ".best2", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
                 best.Save("../result/best");
             }
 
             {
-                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 6>, &MutationUpdateFirst<std::greater<TField>, 6>, 10);
+                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 6>, &MutationUpdateFirst<std::greater<TField>, 6>, tryCount);
                 Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
                 best.Save("../result/" + time + ".best2", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
                 best.Save("../result/best");
             }
 
             {
-                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 7>, &MutationUpdateFirst<std::greater<TField>, 7>, 10);
+                best.UpdateFirst(&MutationUpdateFirst<std::less<TField>, 7>, &MutationUpdateFirst<std::greater<TField>, 7>, tryCount);
                 Library::String time(Library::Time::Now().ToString("YYYYMMDDhhmmss"));
                 best.Save("../result/" + time + ".best2", Version::applicationName + " " + Version::applicationVersion + " " + Version::applicationDate + "\n", true);
                 best.Save("../result/best");

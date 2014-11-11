@@ -13,7 +13,7 @@ namespace azspcs
 class Result
 {
 public:
-    typedef long long (*MutationFunctor)(TField);
+    typedef int (*MutationFunctor)(TField);
 
     Result();
     ~Result();

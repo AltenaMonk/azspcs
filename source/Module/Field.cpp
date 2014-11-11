@@ -21,6 +21,7 @@ Field::Field()
     , m_value(0)
     , m_isPreValue(false)
     , m_isValue(false)
+    , m_type(2)
 {
 }
 
@@ -88,11 +89,12 @@ void Field::Load(Library::String const & data, unsigned int size)
     memset(m_dirty.get(), 1, size * size * sizeof(m_dirty[0]));
 
     Library::String::TStrings strings = data.Split(" ");
+    SetType(Library::SmartCast<int>(strings[0]));
     for (int x(0); x < GetSize(); ++x)
     {
         for (int y(0); y < GetSize(); ++y)
         {
-            Set(x, y, Library::SmartCast<TType>(strings[x*size+y]));
+            Set(x, y, Library::SmartCast<TType>(strings[x * size + y + 1]));
         }
     }
 }
@@ -100,6 +102,7 @@ void Field::Load(Library::String const & data, unsigned int size)
 Library::String Field::Save() const
 {
     Library::String data("");
+    data += Library::SmartCast<Library::String>(GetType()) + " ";
     for (unsigned int x(0); x < GetSize(); ++x)
     {
         for (unsigned int y(0); y < GetSize(); ++y)
@@ -129,7 +132,7 @@ Library::String Field::Save2() const
     return data;
 }
 
-long long Field::GetValue() const
+int Field::GetValue() const
 {
     if (m_isValue)
     {
@@ -139,7 +142,7 @@ long long Field::GetValue() const
     PreValue();
 
     unsigned int size(GetSize()*GetSize());
-    long long result(0);
+    int result(0);
     for (unsigned int a(0); a < size; ++a)
     {
         for (unsigned int b(a+1); b < size; ++b)
@@ -162,6 +165,21 @@ void Field::Swap(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int
     std::swap(first, second);
     Set(x1, y1, first);
     Set(x2, y2, second);
+}
+
+void Field::Rotate(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, unsigned int x3, unsigned int y3)
+{
+    /// Меняем местами указанные значения.
+    TType first (Get(x1, y1));
+    TType second(Get(x2, y2));
+    TType third (Get(x3, y3));
+    TType temp(first);
+    first  = third ;
+    third  = second;
+    second = temp;
+    Set(x1, y1, first );
+    Set(x2, y2, second);
+    Set(x3, y3, third );
 }
 
 Field::TType Field::NOD(TType a, TType b)
@@ -242,7 +260,7 @@ void Field::RandomFill()
         }
     }
     std::random_shuffle(places.begin(), places.end());
-    for (long long z(0); z < GetSize() * GetSize(); ++z)
+    for (int z(0); z < GetSize() * GetSize(); ++z)
     {
         Set(places[z].first, places[z].second, z + 1);
     }

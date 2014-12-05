@@ -1,17 +1,16 @@
 .PHONY: debug main clean reinstall buildmanual unittest unittestexecute unittestclean install
 UnitTestPath	:=$(shell pwd)
 
+LibraryUse=-DLIBRARY_USE_THREAD
+
 clean:
 	make clean --makefile=Makefile.build
 
 debug:
-	make -j 6 debug --makefile=Makefile.build build_flags="-O0 -g3 -D_DEBUG"
+	make -j 6 debug --makefile=Makefile.build build_flags="-O0 -g3 -D_DEBUG $(LibraryUse)"
 
 main:
-	make -j 6 main  --makefile=Makefile.build build_flags="-O3"
-
-testvalidator:
-	make -j 6 main  --makefile=Makefile.build build_flags="-DTEST_VALIDATOR"
+	make -j 6 main  --makefile=Makefile.build build_flags="-O3 $(LibraryUse)"
 
 install:
 #	rm -rf /home/apparat/gui/server_bar

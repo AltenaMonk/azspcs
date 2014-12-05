@@ -15,8 +15,8 @@ Library::String const applicationDate="1986.01.04";
 #else
 
 Library::String const applicationName="azspcs";
-Library::String const applicationVersion="0.0.4";
-Library::String const applicationDate="2014.11.11";
+Library::String const applicationVersion="0.0.5";
+Library::String const applicationDate="2014.12.05";
 
 #endif//UNITTEST
 

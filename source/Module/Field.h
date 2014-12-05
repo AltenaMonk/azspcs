@@ -19,6 +19,7 @@ public:
     ~Field();
 
     TField Clone() const;
+    bool Equal(TField other) const;
 
     static void InitializeClass(unsigned int maxSize);
     static void ReleaseClass(unsigned int maxSize);
@@ -51,6 +52,7 @@ public:
 
     void Swap(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2);
     void Rotate(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, unsigned int x3, unsigned int y3);
+    void Rotate(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, unsigned int x3, unsigned int y3, unsigned int x4, unsigned int y4, int type, bool forward);
 
     inline bool operator>(Field const & other) const
     {

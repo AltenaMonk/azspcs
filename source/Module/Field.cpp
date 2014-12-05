@@ -45,6 +45,15 @@ Field::TField Field::Clone() const
     return field;
 }
 
+bool Field::Equal(TField other) const
+{
+    if (other->m_size != m_size)
+    {
+        return false;
+    }
+    return memcmp(other->m_data.get(), m_data.get(), m_size * m_size * sizeof(TType)) == 0;
+}
+
 void Field::InitializeClass(unsigned int maxSize)
 {
     m_nod = new TType * [maxSize*maxSize + 1];
@@ -180,6 +189,107 @@ void Field::Rotate(unsigned int x1, unsigned int y1, unsigned int x2, unsigned i
     Set(x1, y1, first );
     Set(x2, y2, second);
     Set(x3, y3, third );
+}
+
+void Field::Rotate(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, unsigned int x3, unsigned int y3, unsigned int x4, unsigned int y4, int type, bool forward)
+{
+    /// Меняем местами указанные значения.
+    TType first (Get(x1, y1));
+    TType second(Get(x2, y2));
+    TType third (Get(x3, y3));
+    TType forth (Get(x4, y4));
+
+    if (forward == false)
+    {
+        static int revert[] = {0, 6, 3, 2, 4, 7, 1, 5, 8};
+        type = revert[type];
+    }
+
+    switch (type)
+    {
+        case 0:
+        {
+            std::swap(first , second);
+            std::swap(third , forth );
+        }
+        break;
+        case 1:
+        {
+            TType temp(first);
+            first  = second;
+            second = third ;
+            third  = forth ;
+            forth  = temp  ;
+        }
+        break;
+        case 2:
+        {
+            TType temp(first);
+            first  = second;
+            second = forth ;
+            forth  = third ;
+            third  = temp  ;
+        }
+        break;
+        case 3:
+        {
+            TType temp(first);
+
+            first  = third ;
+            third  = forth ;
+            forth  = second;
+            second = temp  ;
+        }
+        break;
+        case 4:
+        {
+            std::swap(first , third);
+            std::swap(second, forth );
+
+        }
+        break;
+        case 5:
+        {
+            TType temp(first);
+
+            first  = third ;
+            third  = second;
+            second = forth;
+            forth  = temp  ;
+        }
+        break;
+        case 6:
+        {
+            TType temp(first);
+
+            first  = forth ;
+            forth  = third ;
+            third  = second;
+            second = temp  ;
+        }
+        break;
+        case 7:
+        {
+            TType temp(first);
+
+            first  = forth ;
+            forth  = second;
+            second = third ;
+            third  = temp  ;
+        }
+        break;
+        case 8:
+        {
+            std::swap(first , forth );
+            std::swap(second, third );
+        }
+        break;
+    }
+
+    Set(x1, y1, first );
+    Set(x2, y2, second);
+    Set(x3, y3, third );
+    Set(x4, y4, forth );
 }
 
 Field::TType Field::NOD(TType a, TType b)

@@ -4,10 +4,13 @@
 #include <Library/LogHelper.h>
 #include <Library/SmartCast.h>
 
+#include "Version.h"
+
 namespace azspcs
 {
 
 Result::Result()
+    : m_time(Library::Time(0))
 {
 }
 
@@ -69,6 +72,13 @@ void Result::Load(Library::String const & filename)
 
 void Result::Save(Library::String const & filename, Library::String const & additionalInformation, bool isPeopleView) const
 {
+    Library::Time now(Library::Time::Now());
+    Library::Time nextSaveTime(m_time + Library::Time(60));
+    if (isPeopleView == true && (now < nextSaveTime))
+    {
+        return;
+    }
+    m_time = now;
     Library::String data;
     Library::String send;
     Library::String people;
@@ -108,50 +118,53 @@ void Result::Save(Library::String const & filename, Library::String const & addi
         Library::File(filename + ".people", true).ReWrite(people);
         Library::File(filename + ".azspcs", true).ReWrite(send);
     }
+    if (isPeopleView == true)
+    {
+        Save("../result/best");
+    }
 }
 
 void Result::UpdateFirst(MutationFunctor functorMin, MutationFunctor functorMax, unsigned int tryCount)
 {
     for (TFields::iterator iterator(m_fields.begin()); iterator != m_fields.end(); ++iterator)
     {
+        const int maxType(3);
         for (unsigned int i(0); i < tryCount; ++i)
         {
             TField field(iterator->second.first);
-            const int maxType(3);
             if (field->GetType() <= maxType)
             {
                 int value = functorMin(field);
                 if (value > 0)
                 {
-                    field->SetType(2);
                     LOG_PROG_INFO << "Update min " << field->GetType() << " for " << field->GetSize() << " on " << value;
+                    field->SetType(2);
                 }
                 else
                 {
-                    field->SetType(field->GetType() + 1);
                     LOG_PROG_INFO << "No updates min " << field->GetType() << " for " << field->GetSize();
-                    break;
+                    field->SetType(field->GetType() + 1);
                 }
-            }
-            else
-            {
-                LOG_PROG_INFO << "No updates min " << field->GetType() << " for " << field->GetSize();
+                return;
             }
         }
         for (unsigned int i(0); i < tryCount; ++i)
         {
             TField field(iterator->second.second);
-            int value = functorMax(field);
-            if (value > 0)
+            if (field->GetType() <= maxType)
             {
-                field->SetType(2);
-                LOG_PROG_INFO << "Update max " << field->GetType() << " for " << field->GetSize() << " on " << value;
-            }
-            else
-            {
-                field->SetType(field->GetType() + 1);
-                LOG_PROG_INFO << "No updates " << field->GetType() << " max for " << field->GetSize();
-                break;
+                int value = functorMax(field);
+                if (value > 0)
+                {
+                    LOG_PROG_INFO << "Update max " << field->GetType() << " for " << field->GetSize() << " on " << value;
+                    field->SetType(2);
+                }
+                else
+                {
+                    LOG_PROG_INFO << "No updates max " << field->GetType() << " for " << field->GetSize();
+                    field->SetType(field->GetType() + 1);
+                }
+                return;
             }
         }
     }

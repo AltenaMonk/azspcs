@@ -5,6 +5,8 @@
 
 #include <boost/shared_ptr.hpp>
 
+#include <Library/Time.h>
+
 #include "Field.h"
 
 namespace azspcs
@@ -31,6 +33,8 @@ private:
     typedef std::map<unsigned int, std::pair<TField, TField> > TFields;
 
     TFields m_fields;
+
+    Library::Time mutable m_time;
 };
 
 typedef boost::shared_ptr<Result> TResult;

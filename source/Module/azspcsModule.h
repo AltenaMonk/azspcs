@@ -7,7 +7,9 @@
 namespace Library
 {
 class XML;
-class Time;
+template <bool isExternal>
+class BaseTime;
+typedef BaseTime<true> Time;
 }
 
 namespace azspcs
